@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MEOW Game v7.2 Enhanced</title>
+    <script src="https://threejs.org/build/three.js"></script>
+    <script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <h1>Welcome to MEOW Enhanced!</h1>
+    <div id="startMenu">
+        <h2>Select Your Creature</h2>
+        <button onclick="selectCreature('Cat')">Cat</button>
+        <button onclick="selectCreature('Reptile')">Reptile</button>
+        <button onclick="selectCreature('Dog')">Dog</button>
+        <button onclick="selectCreature('Fish')">Fish</button>
+        <button onclick="selectCreature('Whale')">Whale</button>
+        <button onclick="selectCreature('Octopus')">Octopus</button>
+    </div>
+    <script>
+        function selectCreature(creature) {
+            alert('You selected: ' + creature);
+            // Implement the logic for different creature mechanics here
+        }
+
+        // Initialize improved AI and game mechanics
+        function initializeGame() {
+            // Initialize game world and enhanced villager AI
+            // Implement blueprint building system
+            // Handle creature interactions such as leashing and petting 
+            // Implement NG+ save system
+        }
+
+        window.onload = initializeGame;
+    </script>
+</body>
+</html>

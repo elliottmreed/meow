@@ -1,0 +1,1200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>MEOW – Bright 3D Learning (Merged v7.0)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800;900&family=Philosopher:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --ink:#0b0b10;
+    --panel: rgba(255,255,255,0.78);
+    --panel2: rgba(255,255,255,0.62);
+    --line: rgba(0,0,0,0.12);
+    --text:#11121a;
+    --muted: rgba(17,18,26,0.72);
+    --good:#2e7d32;
+    --evil:#b71c1c;
+    --gold:#ffca28;
+    --blue:#1976d2;
+    --shadow: 0 14px 40px rgba(0,0,0,0.18);
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+  html, body{ height:100%; }
+  body{
+    font-family: 'Philosopher', serif;
+    color: var(--text);
+    overflow:hidden;
+    background: radial-gradient(circle at 50% 20%, #ffffff 0%, #e7f2ff 40%, #bfe3ff 100%);
+    touch-action: none;
+  }
+  #gameCanvas{ position:absolute; inset:0; width:100%; height:100%; display:block; }
+
+  .hud{
+    position:absolute;
+    top:12px; left:12px;
+    z-index:10;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    pointer-events:none;
+    width:min(320px, 92vw);
+  }
+  .panel{
+    background: var(--panel);
+    border:1px solid var(--line);
+    border-radius:14px;
+    box-shadow: var(--shadow);
+    padding:10px 12px;
+    backdrop-filter: blur(8px);
+  }
+  .row{ display:flex; justify-content:space-between; align-items:center; gap:10px; }
+  .label{
+    font-family:'Cinzel', serif;
+    font-weight:800;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    font-size:0.72rem;
+    color: rgba(17,18,26,0.78);
+  }
+  .value{ font-weight:800; font-variant-numeric:tabular-nums; }
+  .bar{
+    height:14px;
+    border-radius:999px;
+    background: rgba(0,0,0,0.08);
+    overflow:hidden;
+    border:1px solid rgba(0,0,0,0.10);
+    margin-top:7px;
+  }
+  .fill{ height:100%; width:50%; border-radius:999px; transition: width 0.18s ease; }
+  .mana{ background: linear-gradient(90deg, #4fc3f7, #1976d2); }
+  .hp{ background: linear-gradient(90deg, #ff8a80, #e53935); }
+  .align{ background: linear-gradient(90deg, #2e7d32, #ffeb3b, #b71c1c); }
+  .mood{ background: linear-gradient(90deg, #b71c1c, #ffeb3b, #2e7d32); }
+  .hunger{ background: linear-gradient(90deg, #ffb74d, #e64a19); }
+  .bene{ background: linear-gradient(90deg, rgba(46,125,50,0.35), rgba(46,125,50,1)); }
+  .obed{ background: linear-gradient(90deg, rgba(255,202,40,0.35), rgba(255,202,40,1)); }
+  .heat{ background: linear-gradient(90deg, rgba(120,120,130,0.25), rgba(230,57,53,0.95)); }
+
+  .stats{
+    position:absolute;
+    top:12px; right:12px;
+    z-index:10;
+    pointer-events:none;
+    width:min(240px, 80vw);
+  }
+  .stats .panel{ padding:10px 12px; }
+  .srow{ display:flex; justify-content:space-between; gap:10px; margin:6px 0; }
+  .srow b{ font-family:'Cinzel', serif; letter-spacing:0.06em; font-size:0.78rem; color: rgba(17,18,26,0.72); text-transform:uppercase; }
+  .srow span{ font-weight:900; font-variant-numeric:tabular-nums; }
+
+  .dock{
+    position:absolute;
+    left:50%; transform:translateX(-50%);
+    bottom:12px;
+    z-index:10;
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    justify-content:center;
+    padding:10px 10px;
+    background: var(--panel2);
+    border:1px solid var(--line);
+    border-radius:18px;
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(10px);
+    width:min(840px, 96vw);
+  }
+  .btn{
+    width:64px; height:64px;
+    border-radius:14px;
+    border:1px solid rgba(0,0,0,0.12);
+    background: rgba(255,255,255,0.75);
+    display:flex; align-items:center; justify-content:center;
+    font-size:1.55rem;
+    cursor:pointer;
+    pointer-events:auto;
+    position:relative;
+    transition: transform 0.16s ease, box-shadow 0.16s ease, opacity 0.16s ease;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.10);
+    user-select:none;
+  }
+  .btn:hover{ transform: translateY(-2px); box-shadow: 0 14px 28px rgba(0,0,0,0.16); }
+  .btn.active{ outline: 3px solid rgba(25,118,210,0.35); }
+  .btn.disabled{ opacity:0.35; cursor:not-allowed; }
+  .cost{
+    position:absolute;
+    bottom:-16px;
+    font-size:0.72rem;
+    font-weight:900;
+    color: rgba(17,18,26,0.68);
+  }
+  .hotkey{
+    position:absolute;
+    top:4px; right:6px;
+    font-size:0.62rem;
+    color: rgba(17,18,26,0.55);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  }
+  .cd{
+    position:absolute;
+    inset:0;
+    border-radius:14px;
+    background: rgba(17,18,26,0.25);
+    opacity:0;
+    pointer-events:none;
+  }
+  .btn.oncd .cd{ opacity:1; }
+  .cd::after{
+    content:"";
+    position:absolute;
+    left:0; right:0; bottom:0;
+    height: var(--cd, 0%);
+    background: rgba(17,18,26,0.28);
+    border-radius: 0 0 14px 14px;
+  }
+
+  #toast{
+    position:absolute;
+    left:50%; transform:translateX(-50%);
+    top:16%;
+    background: rgba(255,255,255,0.88);
+    border:1px solid rgba(0,0,0,0.12);
+    border-radius:16px;
+    padding:12px 16px;
+    box-shadow: var(--shadow);
+    font-family:'Cinzel', serif;
+    font-weight:900;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+    color: rgba(17,18,26,0.85);
+    opacity:0;
+    transition: opacity 0.25s ease;
+    z-index:100;
+    pointer-events:none;
+    text-align:center;
+    max-width: min(82vw, 720px);
+  }
+
+  #tooltip{
+    position:absolute;
+    z-index:150;
+    pointer-events:none;
+    opacity:0;
+    transform: translate(12px, 12px);
+    background: rgba(255,255,255,0.90);
+    border:1px solid rgba(0,0,0,0.12);
+    border-radius:14px;
+    padding:10px 12px;
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(10px);
+    min-width: 220px;
+    font-size:0.88rem;
+    line-height:1.35;
+  }
+  #tooltip b{ font-family:'Cinzel', serif; letter-spacing:0.06em; }
+  #tooltip .g{ color: var(--good); font-weight:900; }
+  #tooltip .r{ color: var(--evil); font-weight:900; }
+  #tooltip .m{ color: rgba(17,18,26,0.72); font-weight:800; }
+
+  .hint{
+    position:absolute;
+    left:50%; transform:translateX(-50%);
+    bottom: 104px;
+    z-index:9;
+    pointer-events:none;
+    background: rgba(255,255,255,0.72);
+    border:1px solid rgba(0,0,0,0.10);
+    border-radius: 999px;
+    padding: 8px 12px;
+    box-shadow: 0 10px 24px rgba(0,0,0,0.10);
+    font-weight:800;
+    color: rgba(17,18,26,0.72);
+    text-align:center;
+    max-width: min(94vw, 980px);
+  }
+  kbd{
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 0.85em;
+    padding: 2px 6px;
+    border-radius: 8px;
+    border: 1px solid rgba(0,0,0,0.18);
+    background: rgba(255,255,255,0.65);
+  }
+</style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+
+<div class="hud">
+  <div class="panel">
+    <div class="row"><span class="label">Mana</span><span class="value" id="manaVal">100</span></div>
+    <div class="bar"><div class="fill mana" id="manaBar" style="width:100%"></div></div>
+  </div>
+  <div class="panel">
+    <div class="row"><span class="label">Temple HP</span><span class="value" id="hpVal">100</span></div>
+    <div class="bar"><div class="fill hp" id="hpBar" style="width:100%"></div></div>
+  </div>
+  <div class="panel">
+    <div class="row"><span class="label">Alignment</span><span class="value" id="alignVal">Neutral</span></div>
+    <div class="bar"><div class="fill align" id="alignBar" style="width:50%"></div></div>
+  </div>
+  <div class="panel">
+    <div class="row"><span class="label">Creature Mood</span><span class="value" id="moodVal">Content</span></div>
+    <div class="bar"><div class="fill mood" id="moodBar" style="width:55%"></div></div>
+  </div>
+  <div class="panel">
+    <div class="row"><span class="label">Hunger</span><span class="value" id="hungerVal">45</span></div>
+    <div class="bar"><div class="fill hunger" id="hungerBar" style="width:45%"></div></div>
+  </div>
+  <div class="panel">
+    <div class="row"><span class="label">Benevolence</span><span class="value" id="beneVal">0</span></div>
+    <div class="bar"><div class="fill bene" id="beneBar" style="width:0%"></div></div>
+  </div>
+  <div class="panel">
+    <div class="row"><span class="label">Obedience</span><span class="value" id="obedVal">0</span></div>
+    <div class="bar"><div class="fill obed" id="obedBar" style="width:0%"></div></div>
+  </div>
+  <div class="panel">
+    <div class="row"><span class="label">Overheat</span><span class="value" id="heatVal">0</span></div>
+    <div class="bar"><div class="fill heat" id="heatBar" style="width:0%"></div></div>
+  </div>
+</div>
+
+<div class="stats">
+  <div class="panel">
+    <div class="srow"><b>Wave</b><span id="waveNum">1</span></div>
+    <div class="srow"><b>Score</b><span id="scoreNum">0</span></div>
+    <div class="srow"><b>Pop</b><span id="popNum">0</span></div>
+    <div class="srow"><b>Stage</b><span id="stageNum">Kitten</span></div>
+    <div class="srow"><b>Persona</b><span id="personaNum">LAZY</span></div>
+  </div>
+</div>
+
+<div class="dock" id="dock">
+  <div class="btn" id="m0" onclick="selectMiracle(0)" title="🔥 Fireball (stronger when evil)">🔥<span class="hotkey">1</span><span class="cost">45</span><div class="cd"></div></div>
+  <div class="btn" id="m1" onclick="selectMiracle(1)" title="✨ Heal (stronger when good)">✨<span class="hotkey">2</span><span class="cost">15</span><div class="cd"></div></div>
+  <div class="btn" id="m2" onclick="selectMiracle(2)" title="🌊 Flood (pushes enemies, grows sandbars)">🌊<span class="hotkey">3</span><span class="cost">30</span><div class="cd"></div></div>
+  <div class="btn" id="m3" onclick="selectMiracle(3)" title="🐟 Fish Rain (feeds creature)">🐟<span class="hotkey">4</span><span class="cost">10</span><div class="cd"></div></div>
+  <div class="btn" id="m4" onclick="selectMiracle(4)" title="🌋 Volcano (very destructive)">🌋<span class="hotkey">5</span><span class="cost">50</span><div class="cd"></div></div>
+  <div class="btn" id="m5" onclick="selectMiracle(5)" title="⚡ Chain Smite (arcs to 3–4 targets)">⚡<span class="hotkey">6</span><span class="cost">25</span><div class="cd"></div></div>
+  <div class="btn" id="m6" onclick="selectMiracle(6)" title="🌳 Forest (stronger when good)">🌳<span class="hotkey">7</span><span class="cost">15</span><div class="cd"></div></div>
+  <div class="btn" id="m7" onclick="selectMiracle(7)" title="🏠 Build House (boosts population cap)">🏠<span class="hotkey">8</span><span class="cost">40</span><div class="cd"></div></div>
+  <div class="btn" id="m8" onclick="selectMiracle(8)" title="🌧️ Rain (calm + growth)">🌧️<span class="hotkey">9</span><span class="cost">35</span><div class="cd"></div></div>
+  <div class="btn" id="m9" onclick="selectMiracle(9)" title="🕊️ Resurrection (stronger when good)">🕊️<span class="hotkey">0</span><span class="cost">80</span><div class="cd"></div></div>
+</div>
+
+<div class="hint" id="hint">
+  Cast: <kbd>Left Click</kbd> / <kbd>Tap</kbd> • Select miracle: <kbd>1–0</kbd> • Leash creature: hover near it + hold <kbd>Left</kbd> ~1s • Release: <kbd>Right Click</kbd> • Pet/Train: hold <kbd>E</kbd> near creature
+</div>
+
+<div id="toast"></div>
+<div id="tooltip"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+/* ============================================================
+   MEOW – Merged Systems (v7.0)
+   ============================================================ */
+
+const canvas = document.getElementById('gameCanvas');
+const tooltip = document.getElementById('tooltip');
+
+let scene, camera, renderer, clock, controls;
+let terrain, creature, temple, handCursor, leashLine;
+let villagers = [], trees = [], buildings = [], rocks = [];
+let particles = [];
+let sun, water;
+
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a,b,t)=> a + (b-a)*t;
+
+const state = {
+  mana: 100,
+  maxMana: 100,
+  templeHP: 100,
+  alignment: 50, // 0 good .. 100 evil
+  wave: 1,
+  score: 0,
+  time: 0,
+  selectedMiracle: 0,
+  gameOver: false,
+  overheat: 0,
+  cameraShake: 0,
+};
+
+const creatureState = {
+  mood: 55,
+  hunger: 45,
+  thirst: 60,
+  play: 60,
+  xp: 0,
+  stage: 0,
+  personality: 'lazy', // lazy, benevolent, aggressive
+  leashed: false,
+  leashHold: 0,
+  leashBrokenCooldown: 0,
+  ignoreLeashUntil: 0,
+  targetPos: new THREE.Vector3(12, 0, 12),
+  learn: { benevolence:0, malevolence:0, obedience:0, foodLove:0, enemyHate:0, villagerAttitude:0 }
+};
+
+const STAGES = ['Kitten', 'Cat', 'Panther', 'Lion', 'Tiger'];
+
+const ANIMS = {
+  idle:  { bodyY: 0.05, bodyScaleY: 0.03, tailSpeed: 1.2, tailAmp: 0.20, headBob: 0.01 },
+  walk:  { bodyY: 0.18, bodyScaleY: 0.06, tailSpeed: 4.0, tailAmp: 0.45, headBob: 0.06 },
+  run:   { bodyY: 0.35, bodyScaleY: 0.10, tailSpeed: 8.0, tailAmp: 0.65, headBob: 0.12 },
+  sleep: { bodyY:-0.10, bodyScaleY: 0.02, tailSpeed: 0.2, tailAmp: 0.06, headBob: 0.00 }
+};
+
+const MIRACLES = [
+  { key:'fireball', name:'Fireball', cost:45, cooldown:3.8, effect: castFireball, desc:"Explodes; hurts temple/trees; scares villagers." },
+  { key:'heal', name:'Heal', cost:15, cooldown:2.1, effect: castHeal, desc:"Heals villagers/temple; calms creature." },
+  { key:'flood', name:'Flood', cost:30, cooldown:5.0, effect: castFlood, desc:"Wave pushes outward; cancels fear." },
+  { key:'fish', name:'Fish Rain', cost:10, cooldown:1.2, effect: castFishRain, desc:"Feeds creature; small mood boost." },
+  { key:'volcano', name:'Volcano', cost:50, cooldown:10, effect: castVolcano, desc:"Big crater + fire; heavy evil shift." },
+  { key:'smite', name:'Chain Smite', cost:25, cooldown:4.0, effect: castChainSmite, desc:"Arcs lightning; hits nearest targets." },
+  { key:'forest', name:'Forest', cost:15, cooldown:2.0, effect: castForest, desc:"Plants trees; best when good." },
+  { key:'build', name:'Build', cost:40, cooldown:6.0, effect: castBuildHouse, desc:"Builds a house; attracts villagers." },
+  { key:'rain', name:'Rain', cost:35, cooldown:7.0, effect: castRain, desc:"Soothes + growth; cools overheat." },
+  { key:'res', name:'Resurrection', cost:80, cooldown:30, effect: castResurrection, desc:"Spawns villagers (run-saving miracle)." }
+];
+const miracleCooldowns = new Array(MIRACLES.length).fill(0);
+
+let mouseNDC = new THREE.Vector2(0,0);
+let pointerDown = false;
+let pointerDownAt = 0;
+let rightDown = false;
+let eHeld = false;
+
+const raycaster = new THREE.Raycaster();
+const tmpV = new THREE.Vector3();
+
+function init(){
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x87ceeb);
+  scene.fog = new THREE.FogExp2(0x87ceeb, 0.0035);
+
+  camera = new THREE.PerspectiveCamera(55, window.innerWidth/window.innerHeight, 0.1, 1400);
+  camera.position.set(52, 46, 52);
+
+  renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:false });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+  clock = new THREE.Clock();
+
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x6c8fb8, 0.62));
+
+  sun = new THREE.DirectionalLight(0xffffff, 1.0);
+  sun.position.set(80, 120, 40);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048,2048);
+  sun.shadow.camera.left = -90;
+  sun.shadow.camera.right = 90;
+  sun.shadow.camera.top = 90;
+  sun.shadow.camera.bottom = -90;
+  sun.shadow.camera.near = 1;
+  sun.shadow.camera.far = 320;
+  scene.add(sun);
+
+  createTerrain();
+  createTemple();
+  createCreature();
+  createHandCursor();
+  spawnInitialVillagers();
+
+  controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.target.set(0,0,0);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.06;
+  controls.rotateSpeed = 0.7;
+  controls.zoomSpeed = 0.9;
+  controls.enablePan = true;
+  controls.screenSpacePanning = true;
+  controls.minDistance = 22;
+  controls.maxDistance = 220;
+  controls.maxPolarAngle = Math.PI*0.48;
+
+  // NG+
+  try{
+    const saved = JSON.parse(localStorage.getItem('meowCreatureNGP') || 'null');
+    if(saved && saved.learn){
+      for(const k in creatureState.learn){
+        if(typeof saved.learn[k] === 'number') creatureState.learn[k] = clamp(saved.learn[k], 0, 100);
+      }
+      creatureState.personality = saved.personality || creatureState.personality;
+      creatureState.xp = clamp(saved.xp || 0, 0, 1200);
+      applyPersonaFromLearn(true);
+    }
+  }catch(e){}
+
+  window.addEventListener('resize', onResize);
+  window.addEventListener('contextmenu', ev => ev.preventDefault());
+
+  canvas.addEventListener('mousemove', onMouseMove);
+  canvas.addEventListener('mousedown', onMouseDown);
+  canvas.addEventListener('mouseup', onMouseUp);
+
+  canvas.addEventListener('touchstart', onTouchStart, {passive:false});
+  canvas.addEventListener('touchmove', onTouchMove, {passive:false});
+  canvas.addEventListener('touchend', onTouchEnd, {passive:false});
+
+  document.addEventListener('keydown', onKeyDown);
+  document.addEventListener('keyup', onKeyUp);
+
+  selectMiracle(0);
+  animate();
+}
+
+function onResize(){
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+/* Terrain */
+function smoothstep(min, max, value) {
+  const x = Math.max(0, Math.min(1, (value - min) / (max - min)));
+  return x * x * (3 - 2 * x);
+}
+function heightAt(x, z) {
+  const dist = Math.sqrt(x*x + z*z);
+  const islandRadius = 55;
+  const mask = 1.0 - smoothstep(islandRadius * 0.72, islandRadius, dist);
+  if (dist > islandRadius) return -5;
+  let h = Math.sin(x*0.08)*Math.cos(z*0.08)*3; 
+  h += Math.sin(x*0.04)*Math.cos(z*0.03)*2;
+  h += Math.sin(x*0.1)*1.2;
+  if (mask < 0.3) h *= mask * 0.5;
+  return h * mask - (1.0 - mask) * 5;
+}
+function createTerrain(){
+  const size = 160, seg = 128;
+  const geo = new THREE.PlaneGeometry(size, size, seg, seg);
+  const pos = geo.attributes.position;
+  const colors = [];
+  const color = new THREE.Color();
+  for(let i=0; i<pos.count; i++){
+    const x = pos.getX(i);
+    const y = pos.getY(i);
+    const h = heightAt(x, y);
+    pos.setZ(i, h);
+    if (h < -0.5) color.setHex(0x2196f3);
+    else if (h < 0.5) color.setHex(0xffecb3);
+    else if (h > 4) color.setHex(0x78909c);
+    else color.setHex(0x4caf50);
+    colors.push(color.r, color.g, color.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  geo.computeVertexNormals();
+  terrain = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0.08 }));
+  terrain.rotation.x = -Math.PI/2;
+  terrain.receiveShadow = true;
+  scene.add(terrain);
+
+  water = new THREE.Mesh(
+    new THREE.PlaneGeometry(size*2, size*2),
+    new THREE.MeshStandardMaterial({ color: 0x00aaff, transparent: true, opacity: 0.55, metalness: 0.9, roughness: 0.12 })
+  );
+  water.rotation.x = -Math.PI/2;
+  water.position.y = -1.5;
+  scene.add(water);
+
+  for(let i=0; i<34; i++){
+    const ang = Math.random()*Math.PI*2;
+    const rad = Math.random()*45;
+    const px = Math.cos(ang)*rad;
+    const pz = Math.sin(ang)*rad;
+    if (heightAt(px, pz) > 0.6) {
+      const item = Math.random() > 0.3 ? createTree() : createRock();
+      item.position.set(px, 0, pz);
+      placeOnGround(item, 0);
+      (item.userData.type === 'tree' ? trees : rocks).push(item);
+      scene.add(item);
+    }
+  }
+}
+function createTree(){
+  const g = new THREE.Group();
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.45, 3.5, 8), new THREE.MeshStandardMaterial({ color: 0x5d4037 }));
+  trunk.position.y = 1.75; trunk.castShadow = true;
+  g.add(trunk);
+  const foliage = new THREE.Mesh(new THREE.DodecahedronGeometry(2, 1), new THREE.MeshStandardMaterial({ color: 0x2e7d32, roughness: 0.85 }));
+  foliage.position.y = 4.5; foliage.castShadow = true;
+  g.add(foliage);
+  g.scale.setScalar(0.8 + Math.random()*0.45);
+  g.userData = { type:'tree', health:3 };
+  return g;
+}
+function createRock(){
+  const g = new THREE.Group();
+  const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(1.2, 0), new THREE.MeshStandardMaterial({ color: 0x90a4ae, roughness: 0.92 }));
+  rock.scale.set(1 + Math.random(), 0.5 + Math.random()*0.5, 1 + Math.random());
+  rock.castShadow = true; g.add(rock);
+  g.userData = { type: 'rock' };
+  return g;
+}
+
+/* Temple */
+function createTemple(){
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(2.8, 3.4, 1.6, 10), new THREE.MeshStandardMaterial({ color: 0xf3f3f6 }));
+  const roof = new THREE.Mesh(new THREE.ConeGeometry(3.1, 2.1, 10), new THREE.MeshStandardMaterial({ color: 0xffca28, emissive:0x111100, emissiveIntensity:0.18 }));
+  roof.position.y = 1.85;
+  temple = new THREE.Group();
+  temple.add(base, roof);
+  temple.position.set(0,0,0);
+  placeOnGround(temple, 0);
+  temple.userData = { type:'temple', hp:100 };
+  scene.add(temple);
+}
+
+/* Hand cursor */
+function createHandCursor(){
+  handCursor = new THREE.Mesh(new THREE.SphereGeometry(0.55, 14, 14), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent:true, opacity:0.55 }));
+  scene.add(handCursor);
+  const ring = new THREE.Mesh(new THREE.RingGeometry(0.85, 1.15, 32), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent:true, opacity:0.20, side:THREE.DoubleSide }));
+  ring.rotation.x = -Math.PI/2;
+  ring.position.y = -0.35;
+  handCursor.add(ring);
+}
+
+/* Creature */
+function createCreature(){
+  const group = new THREE.Group();
+  const bodyMat = new THREE.MeshStandardMaterial({ color: 0xffd39a, roughness:0.75 });
+  const body = new THREE.Mesh(new THREE.SphereGeometry(1.0, 24, 24), bodyMat);
+  body.scale.set(1.4, 0.95, 1.0);
+  body.castShadow = true; body.receiveShadow = true;
+  group.add(body);
+
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.75, 24, 24), bodyMat);
+  head.position.set(1.2, 0.4, 0);
+  head.castShadow = true; head.receiveShadow = true;
+  group.add(head);
+
+  const earGeo = new THREE.ConeGeometry(0.3, 0.6, 6);
+  const leftEar = new THREE.Mesh(earGeo, bodyMat);
+  leftEar.position.set(1.3, 1.0, -0.35); leftEar.rotation.z = 0.2;
+  group.add(leftEar);
+  const rightEar = new THREE.Mesh(earGeo, bodyMat);
+  rightEar.position.set(1.3, 1.0, 0.35); rightEar.rotation.z = -0.2;
+  group.add(rightEar);
+
+  const eyeGeo = new THREE.SphereGeometry(0.12, 12, 12);
+  const eyeMat = new THREE.MeshStandardMaterial({ color: 0x4caf50, emissive: 0x4caf50, emissiveIntensity: 1.5 });
+  const leftEye = new THREE.Mesh(eyeGeo, eyeMat); leftEye.position.set(1.75, 0.5, -0.25);
+  const rightEye = new THREE.Mesh(eyeGeo, eyeMat.clone()); rightEye.position.set(1.75, 0.5, 0.25);
+  group.add(leftEye, rightEye);
+
+  const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.05, 2, 8), bodyMat);
+  tail.position.set(-1.4, 0.35, 0);
+  tail.rotation.z = Math.PI/3;
+  group.add(tail);
+
+  group.position.set(12, 0, 12);
+  placeOnGround(group, 0.6);
+  group.userData = { type:'creature', velocity:new THREE.Vector3(), idleTimer:0, body, head, leftEar, rightEar, leftEye, rightEye, tail };
+  creature = group;
+  scene.add(group);
+
+  leashLine = new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]),
+    new THREE.LineBasicMaterial({ color: 0xffca28, transparent:true, opacity:0.0 })
+  );
+  scene.add(leashLine);
+}
+
+/* Villagers */
+function createVillager(pos){
+  const g = new THREE.Group();
+  const jobs = [
+    { name: 'farmer', color: 0x4caf50 },
+    { name: 'worship', color: 0x1976d2 },
+    { name: 'builder', color: 0xffca28 }
+  ];
+  const job = jobs[Math.floor(Math.random()*jobs.length)];
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.35, 1.2, 8), new THREE.MeshStandardMaterial({ color: job.color }));
+  body.position.y = 0.6; body.castShadow = true;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 12), new THREE.MeshStandardMaterial({ color: 0xffdbac }));
+  head.position.y = 1.35; head.castShadow = true;
+  g.add(body, head);
+  g.position.copy(pos);
+  placeOnGround(g, 0);
+  g.userData = { type:'villager', job:job.name, morale:60, hp:100, targetPos:new THREE.Vector3(), timer:0, state:'wander', scaredUntil:0 };
+  scene.add(g);
+  villagers.push(g);
+}
+function spawnInitialVillagers(){
+  for(let i=0;i<9;i++){
+    const ang = Math.random()*Math.PI*2;
+    const rad = 8 + Math.random()*15;
+    createVillager(new THREE.Vector3(Math.cos(ang)*rad, 0, Math.sin(ang)*rad));
+  }
+}
+function updateVillagers(delta){
+  const now = state.time;
+  villagers.forEach(v=>{
+    const d = v.userData;
+    d.timer += delta;
+    const scale = 0.8 + (d.morale / 150);
+    v.scale.lerp(new THREE.Vector3(scale, scale, scale), 0.08);
+    const distToCreature = v.position.distanceTo(creature.position);
+    if (creatureState.personality === 'aggressive' && distToCreature < 12) {
+      d.state = 'flee';
+      d.targetPos.subVectors(v.position, creature.position).normalize().multiplyScalar(6).add(v.position);
+      d.morale = clamp(d.morale - delta*2.2, 0, 100);
+    } else if (now < d.scaredUntil) {
+      d.state = 'flee';
+    } else if (d.timer > 4) {
+      const r = Math.random();
+      if (r < 0.28 && d.job === 'worship') d.state = 'pray';
+      else if (r < 0.18) d.state = 'gather';
+      else d.state = 'wander';
+      if (d.state === 'pray') d.targetPos.set(0,0,0);
+      else if (d.state === 'gather' && trees.length) d.targetPos.copy(trees[Math.floor(Math.random()*trees.length)].position);
+      else {
+        const ang = Math.random()*Math.PI*2;
+        d.targetPos.set(Math.cos(ang)*20, 0, Math.sin(ang)*20);
+      }
+      d.timer = 0;
+    }
+    const dir = tmpV.subVectors(d.targetPos, v.position);
+    const dist = dir.length();
+    if(dist>1e-3) dir.normalize();
+    const speed = (d.state === 'flee') ? 4.6 : 2.2;
+    if(dist > 1.5){
+      v.position.addScaledVector(dir, delta*speed);
+      v.lookAt(d.targetPos.x, v.position.y, d.targetPos.z);
+    }
+    if(d.state === 'pray' && v.position.distanceTo(temple.position) < 5){
+      state.mana = clamp(state.mana + delta*0.55, 0, state.maxMana);
+    }
+    placeOnGround(v, 0);
+  });
+  villagers = villagers.filter(v => v.userData.hp > 0);
+}
+
+/* Helpers */
+function placeOnGround(obj, yOffset=0){
+  obj.position.y = heightAt(obj.position.x, obj.position.z) + (yOffset||0);
+}
+function beneRatio(){
+  const b = creatureState.learn.benevolence;
+  const m = creatureState.learn.malevolence;
+  const total = Math.max(1e-6, b+m);
+  return b/total;
+}
+function applyPersonaFromLearn(){
+  const L = creatureState.learn;
+  if(L.benevolence > L.malevolence + 10) creatureState.personality = 'benevolent';
+  else if(L.malevolence > L.benevolence + 10) creatureState.personality = 'aggressive';
+  else creatureState.personality = 'lazy';
+}
+function alignmentShift(deltaGood){
+  state.alignment = clamp(state.alignment - deltaGood, 0, 100);
+}
+
+/* UI */
+function selectMiracle(idx){
+  if(idx < 0 || idx >= MIRACLES.length) return;
+  state.selectedMiracle = idx;
+  document.querySelectorAll('.dock .btn').forEach((b,i)=> b.classList.toggle('active', i===idx));
+  toast(MIRACLES[idx].name.toUpperCase());
+}
+function updateCooldownUI(){
+  for(let i=0;i<MIRACLES.length;i++){
+    const el = document.getElementById('m'+i);
+    const cd = miracleCooldowns[i];
+    const max = MIRACLES[i].cooldown;
+    const pct = clamp((cd/max)*100, 0, 100);
+    el.classList.toggle('oncd', cd > 0.02);
+    el.style.setProperty('--cd', pct+'%');
+    el.classList.toggle('disabled', state.mana < MIRACLES[i].cost);
+  }
+}
+function updateTooltip(x, y){
+  const m = MIRACLES[state.selectedMiracle];
+  tooltip.style.left = x + "px";
+  tooltip.style.top = y + "px";
+  tooltip.innerHTML =
+    "<b>"+m.name+"</b><br>" +
+    "<span class='m'>Cost:</span> "+m.cost+" • <span class='m'>CD:</span> "+m.cooldown.toFixed(1)+"s<br>" +
+    "<span class='"+(m.key==='heal'||m.key==='forest'||m.key==='rain'||m.key==='res'?'g':'r')+"'>"+m.desc+"</span>";
+  tooltip.style.opacity = 1;
+}
+function updateUI(){
+  document.getElementById('manaVal').innerText = Math.floor(state.mana);
+  document.getElementById('manaBar').style.width = (state.mana/state.maxMana*100)+'%';
+  document.getElementById('hpVal').innerText = Math.floor(state.templeHP);
+  document.getElementById('hpBar').style.width = state.templeHP+'%';
+  const align = state.alignment > 60 ? "Aggressive" : state.alignment < 40 ? "Benevolent" : "Neutral";
+  document.getElementById('alignVal').innerText = align;
+  document.getElementById('alignBar').style.width = state.alignment+'%';
+  document.getElementById('moodVal').innerText = creatureState.mood > 70 ? "Happy" : creatureState.mood < 30 ? "Angry" : "Content";
+  document.getElementById('moodBar').style.width = creatureState.mood+'%';
+  document.getElementById('hungerVal').innerText = Math.floor(creatureState.hunger);
+  document.getElementById('hungerBar').style.width = creatureState.hunger+'%';
+  document.getElementById('beneVal').innerText = Math.floor(creatureState.learn.benevolence);
+  document.getElementById('beneBar').style.width = creatureState.learn.benevolence+'%';
+  document.getElementById('obedVal').innerText = Math.floor(creatureState.learn.obedience);
+  document.getElementById('obedBar').style.width = creatureState.learn.obedience+'%';
+  document.getElementById('heatVal').innerText = Math.floor(state.overheat);
+  document.getElementById('heatBar').style.width = state.overheat+'%';
+  document.getElementById('waveNum').innerText = state.wave;
+  document.getElementById('scoreNum').innerText = state.score;
+  document.getElementById('popNum').innerText = villagers.length;
+  document.getElementById('stageNum').innerText = STAGES[creatureState.stage];
+  document.getElementById('personaNum').innerText = creatureState.personality.toUpperCase();
+}
+
+/* Toast */
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.innerText = msg;
+  t.style.opacity = 1;
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(()=> t.style.opacity = 0, 2200);
+}
+
+/* Particles */
+function spawnParticles({pos,count=18,spread=1.2,speed=10,life=0.9,color=0xffffff,size=0.12,gravity=-9.8,emissive=0.0}){
+  const geo = new THREE.SphereGeometry(size, 8, 8);
+  const mat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: emissive, roughness:0.4, metalness:0.1, transparent:true, opacity:1 });
+  for(let i=0;i<count;i++){
+    const m = new THREE.Mesh(geo, mat);
+    m.position.copy(pos);
+    m.position.x += (Math.random()-0.5)*spread;
+    m.position.y += (Math.random())*spread;
+    m.position.z += (Math.random()-0.5)*spread;
+    const vel = new THREE.Vector3((Math.random()-0.5)*speed, (Math.random()*0.9+0.1)*speed, (Math.random()-0.5)*speed);
+    particles.push({ mesh:m, vel, life, maxLife: life, gravity });
+    scene.add(m);
+  }
+}
+function updateParticles(delta){
+  for(let i=particles.length-1;i>=0;i--){
+    const p = particles[i];
+    p.life -= delta;
+    if(p.life <= 0){
+      scene.remove(p.mesh);
+      particles.splice(i,1);
+      continue;
+    }
+    if(p.customUpdate){ p.customUpdate(p, delta); continue; }
+    p.vel.y += p.gravity * delta * 0.35;
+    p.mesh.position.addScaledVector(p.vel, delta);
+    const t = p.life / p.maxLife;
+    p.mesh.scale.setScalar(0.4 + t);
+    p.mesh.material.opacity = clamp(t, 0, 1);
+  }
+}
+
+/* Miracles */
+function canCast(idx){
+  const m = MIRACLES[idx];
+  if(state.mana < m.cost){ toast("NOT ENOUGH MANA"); return false; }
+  if(miracleCooldowns[idx] > 0) return false;
+  if(state.overheat > 92){ toast("OVERHEATED"); return false; }
+  return true;
+}
+function spendMana(cost){ state.mana = clamp(state.mana - cost, 0, state.maxMana); }
+function startCooldown(idx){ miracleCooldowns[idx] = MIRACLES[idx].cooldown; }
+function scareVillagers(center, radius, seconds){
+  const now = state.time;
+  villagers.forEach(v=>{
+    if(v.position.distanceTo(center) < radius){
+      v.userData.scaredUntil = Math.max(v.userData.scaredUntil, now + seconds);
+      v.userData.morale = clamp(v.userData.morale - (seconds*6), 0, 100);
+    }
+  });
+}
+function castAtPoint(point){
+  const idx = state.selectedMiracle;
+  if(!canCast(idx)) return;
+  const m = MIRACLES[idx];
+  spendMana(m.cost);
+  startCooldown(idx);
+  state.overheat = clamp(state.overheat + (m.cost*0.18), 0, 100);
+  m.effect(point);
+  if(['heal','forest','rain','res'].includes(m.key)){
+    creatureState.learn.benevolence = clamp(creatureState.learn.benevolence + 1.4, 0, 100);
+    alignmentShift(+1.2);
+  } else if(['fireball','volcano','smite'].includes(m.key)){
+    creatureState.learn.malevolence = clamp(creatureState.learn.malevolence + 1.4, 0, 100);
+    alignmentShift(-1.2);
+  }
+  applyPersonaFromLearn();
+}
+
+function castFireball(pos){
+  spawnParticles({ pos, count: 34, spread: 2.0, speed: 12, life: 1.1, color: 0xff7043, size:0.14, gravity:-10, emissive:1.1 });
+  state.cameraShake = Math.min(1.4, state.cameraShake + 0.6);
+  trees.forEach(t=>{ if(t.position.distanceTo(pos) < 6) t.userData.health -= 1; });
+  trees = trees.filter(t=>{ if(t.userData.health<=0){ scene.remove(t); return false; } return true; });
+  if(temple.position.distanceTo(pos) < 6){
+    temple.userData.hp = clamp(temple.userData.hp - 12, 0, 100);
+    state.templeHP = temple.userData.hp;
+    toast("TEMPLE HIT!");
+  }
+  scareVillagers(pos, 10, 2.2);
+  state.score += 6;
+}
+function castHeal(pos){
+  spawnParticles({ pos, count: 26, spread: 1.6, speed: 7, life: 1.0, color: 0x90caf9, size:0.12, gravity:-7, emissive:0.9 });
+  villagers.forEach(v=>{ if(v.position.distanceTo(pos)<7){ v.userData.hp = clamp(v.userData.hp+18,0,100); v.userData.morale = clamp(v.userData.morale+10,0,100);} });
+  if(temple.position.distanceTo(pos) < 8){
+    temple.userData.hp = clamp(temple.userData.hp + 10, 0, 100);
+    state.templeHP = temple.userData.hp;
+  }
+  creatureState.mood = clamp(creatureState.mood + 8, 0, 100);
+  state.overheat = clamp(state.overheat - 8, 0, 100);
+  state.score += 8;
+}
+function castFlood(pos){
+  const ring = new THREE.Mesh(new THREE.RingGeometry(0.4, 0.6, 36), new THREE.MeshBasicMaterial({ color: 0x4fc3f7, transparent:true, opacity:0.55, side:THREE.DoubleSide }));
+  ring.rotation.x = -Math.PI/2;
+  ring.position.copy(pos).add(new THREE.Vector3(0,0.05,0));
+  scene.add(ring);
+  particles.push({ mesh:ring, vel:new THREE.Vector3(), life:0.9, maxLife:0.9, gravity:0, customUpdate:(p)=>{
+    const t = clamp(1 - (p.life/p.maxLife), 0, 1);
+    const r = lerp(0.6, 16, t);
+    p.mesh.scale.setScalar(r);
+    p.mesh.material.opacity = (1-t)*0.55;
+  }});
+  villagers.forEach(v=>{
+    const d = v.position.distanceTo(pos);
+    if(d < 10){
+      const push = tmpV.subVectors(v.position, pos).normalize().multiplyScalar(6);
+      v.position.add(push);
+      v.userData.morale = clamp(v.userData.morale + 2, 0, 100);
+      v.userData.scaredUntil = Math.min(v.userData.scaredUntil, state.time);
+    }
+  });
+  state.overheat = clamp(state.overheat - 4, 0, 100);
+  state.score += 5;
+}
+function castFishRain(pos){
+  for(let i=0;i<12;i++){
+    const p = pos.clone().add(new THREE.Vector3((Math.random()-0.5)*6, 8+Math.random()*5, (Math.random()-0.5)*6));
+    spawnParticles({ pos:p, count: 1, spread:0.0, speed:0.0, life: 0.9, color: 0x1565c0, size:0.10, gravity:-25, emissive:0.5 });
+  }
+  if(creature.position.distanceTo(pos) < 10){
+    creatureState.hunger = clamp(creatureState.hunger - 16, 0, 100);
+    creatureState.mood = clamp(creatureState.mood + 6, 0, 100);
+    creatureState.learn.foodLove = clamp(creatureState.learn.foodLove + 1.2, 0, 100);
+  }
+  state.score += 3;
+}
+function castVolcano(pos){
+  spawnParticles({ pos, count: 70, spread: 3.2, speed: 16, life: 1.3, color: 0xff3d00, size:0.16, gravity:-16, emissive:1.3 });
+  state.cameraShake = Math.min(2.0, state.cameraShake + 1.2);
+  trees.forEach(t=>{ if(t.position.distanceTo(pos) < 14) t.userData.health -= 2; });
+  trees = trees.filter(t=>{ if(t.userData.health<=0){ scene.remove(t); return false; } return true; });
+  if(temple.position.distanceTo(pos) < 14){
+    temple.userData.hp = clamp(temple.userData.hp - 28, 0, 100);
+    state.templeHP = temple.userData.hp;
+    toast("TEMPLE DAMAGED!");
+  }
+  scareVillagers(pos, 18, 3.0);
+  state.score += 12;
+}
+function lightning(a, b){
+  const segments = 10;
+  const pts = [];
+  for(let i=0;i<=segments;i++){
+    const t = i/segments;
+    const p = new THREE.Vector3().lerpVectors(a, b, t);
+    p.x += (Math.random()-0.5)*0.7;
+    p.y += (Math.random()-0.5)*0.7;
+    p.z += (Math.random()-0.5)*0.7;
+    pts.push(p);
+  }
+  const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0xe3f2fd, transparent:true, opacity: 0.95 }));
+  scene.add(line);
+  particles.push({ mesh: line, vel:new THREE.Vector3(), life:0.18, maxLife:0.18, gravity:0, customUpdate:(p)=>{ p.mesh.material.opacity = (p.life/p.maxLife);} });
+}
+function castChainSmite(pos){
+  const candidates = [];
+  trees.forEach(t=> candidates.push({ type:'tree', obj:t, p:t.position, d:t.position.distanceTo(pos) }));
+  villagers.forEach(v=> candidates.push({ type:'villager', obj:v, p:v.position, d:v.position.distanceTo(pos) }));
+  candidates.push({ type:'temple', obj:temple, p:temple.position, d:temple.position.distanceTo(pos) });
+  candidates.sort((a,b)=>a.d-b.d);
+  const hits = candidates.slice(0,4);
+  let prev = pos.clone().add(new THREE.Vector3(0,4,0));
+  hits.forEach(h=>{
+    const end = h.p.clone().add(new THREE.Vector3(0,2.0,0));
+    lightning(prev, end);
+    prev = end;
+    if(h.type==='villager'){ h.obj.userData.hp -= 35; h.obj.userData.morale = clamp(h.obj.userData.morale-18,0,100); h.obj.userData.scaredUntil = Math.max(h.obj.userData.scaredUntil, state.time+2.8); }
+    if(h.type==='tree'){ h.obj.userData.health -= 2; }
+    if(h.type==='temple'){ temple.userData.hp = clamp(temple.userData.hp-18,0,100); state.templeHP = temple.userData.hp; }
+    spawnParticles({ pos:end, count: 10, spread:1.1, speed:10, life:0.6, color:0xe3f2fd, size:0.10, gravity:-8, emissive:1.2 });
+  });
+  trees = trees.filter(t=>{ if(t.userData.health<=0){ scene.remove(t); return false; } return true; });
+  state.cameraShake = Math.min(1.2, state.cameraShake + 0.5);
+  state.score += 9;
+}
+function castForest(pos){
+  const bene = beneRatio();
+  const count = Math.round(2 + bene*4);
+  for(let i=0;i<count;i++){
+    const t = createTree();
+    t.position.copy(pos);
+    t.position.x += (Math.random()-0.5)*7;
+    t.position.z += (Math.random()-0.5)*7;
+    placeOnGround(t, 0);
+    if(heightAt(t.position.x, t.position.z) > 0.6){
+      trees.push(t);
+      scene.add(t);
+      spawnParticles({ pos:t.position.clone().add(new THREE.Vector3(0,3,0)), count: 7, spread:1.0, speed:6, life:0.8, color:0x81c784, size:0.10, gravity:-6, emissive:0.7 });
+    }
+  }
+  state.score += 7;
+}
+function castBuildHouse(pos){
+  const g = new THREE.Group();
+  const wall = new THREE.Mesh(new THREE.BoxGeometry(3.2, 2.2, 3.2), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness:0.8 }));
+  wall.position.y = 1.1; wall.castShadow = true;
+  const roof = new THREE.Mesh(new THREE.ConeGeometry(2.5, 1.4, 8), new THREE.MeshStandardMaterial({ color: 0xffca28, roughness:0.6 }));
+  roof.position.y = 2.6; roof.castShadow = true;
+  g.add(wall, roof);
+  g.position.copy(pos);
+  placeOnGround(g, 0);
+  g.userData = { type:'house', hp:100 };
+  buildings.push(g);
+  scene.add(g);
+  spawnParticles({ pos:g.position.clone().add(new THREE.Vector3(0,2,0)), count: 16, spread:1.2, speed:6, life:0.9, color:0xfff59d, size:0.10, gravity:-9, emissive:0.4 });
+  if(villagers.length < 18 && Math.random() > 0.25){
+    const ang = Math.random()*Math.PI*2;
+    const rad = 4 + Math.random()*6;
+    createVillager(new THREE.Vector3(g.position.x + Math.cos(ang)*rad, 0, g.position.z + Math.sin(ang)*rad));
+  }
+  state.score += 10;
+}
+function castRain(pos){
+  for(let i=0;i<30;i++){
+    const p = pos.clone().add(new THREE.Vector3((Math.random()-0.5)*12, 8+Math.random()*6, (Math.random()-0.5)*12));
+    spawnParticles({ pos:p, count: 1, spread:0.0, speed:0.0, life: 0.8, color: 0x42a5f5, size:0.08, gravity:-28, emissive:0.2 });
+  }
+  villagers.forEach(v=>{ if(v.position.distanceTo(pos) < 14){ v.userData.morale = clamp(v.userData.morale + 8, 0, 100); v.userData.scaredUntil = Math.min(v.userData.scaredUntil, state.time); }});
+  trees.forEach(t=>{ if(t.position.distanceTo(pos) < 14) t.userData.health = clamp(t.userData.health + 1, 0, 3); });
+  creatureState.mood = clamp(creatureState.mood + 4, 0, 100);
+  state.overheat = clamp(state.overheat - 14, 0, 100);
+  state.score += 6;
+}
+function castResurrection(pos){
+  const count = (villagers.length < 10) ? 2 : 1;
+  for(let i=0;i<count;i++){
+    const ang = Math.random()*Math.PI*2;
+    const rad = 2 + Math.random()*6;
+    const p = new THREE.Vector3(pos.x + Math.cos(ang)*rad, 0, pos.z + Math.sin(ang)*rad);
+    createVillager(p);
+    spawnParticles({ pos:p.clone().add(new THREE.Vector3(0,1.2,0)), count: 18, spread:1.2, speed:7, life:1.1, color:0xffffff, size:0.10, gravity:-7, emissive:0.9 });
+  }
+  state.score += 14;
+}
+
+/* Leash + pet */
+function updateLeash(delta){
+  const now = state.time;
+  if(creatureState.leashBrokenCooldown > 0) creatureState.leashBrokenCooldown -= delta;
+  const near = handCursor.position.distanceTo(creature.position) < 5.0;
+  if(pointerDown && near && !rightDown && creatureState.leashBrokenCooldown <= 0){
+    creatureState.leashHold += delta;
+    if(creatureState.leashHold > 1.0 && !creatureState.leashed && now > creatureState.ignoreLeashUntil){
+      creatureState.leashed = true;
+      creatureState.learn.obedience = clamp(creatureState.learn.obedience + 1.0, 0, 100);
+      toast("LEASHED");
+    }
+  } else creatureState.leashHold = 0;
+  if(rightDown && creatureState.leashed){
+    creatureState.leashed = false;
+    creatureState.leashBrokenCooldown = 0.6;
+    creatureState.ignoreLeashUntil = now + 0.5;
+    toast("RELEASED");
+  }
+  if(eHeld && near){
+    creatureState.mood = clamp(creatureState.mood + delta*10, 0, 100);
+    creatureState.learn.obedience = clamp(creatureState.learn.obedience + delta*3, 0, 100);
+  }
+  leashLine.material.opacity = creatureState.leashed ? 0.65 : 0.0;
+  const pts = leashLine.geometry.attributes.position;
+  pts.setXYZ(0, handCursor.position.x, handCursor.position.y, handCursor.position.z);
+  pts.setXYZ(1, creature.position.x, creature.position.y + 0.7, creature.position.z);
+  pts.needsUpdate = true;
+}
+
+/* Creature update */
+function updateCreature(delta){
+  const data = creature.userData;
+  const size = 1.0 + (creatureState.xp / 520);
+  creature.scale.setScalar(size);
+  const bene = beneRatio();
+  const alignColor = new THREE.Color().lerpColors(new THREE.Color(0xb71c1c), new THREE.Color(0x2e7d32), bene);
+  data.leftEye.material.color.copy(alignColor); data.leftEye.material.emissive.copy(alignColor);
+  data.rightEye.material.color.copy(alignColor); data.rightEye.material.emissive.copy(alignColor);
+
+  if(creatureState.leashed) creatureState.targetPos.copy(handCursor.position);
+  else {
+    const distToTarget = creature.position.distanceTo(creatureState.targetPos);
+    if(distToTarget < 2){
+      data.idleTimer += delta;
+      if(data.idleTimer > 3 + Math.random()*5){
+        const ang = Math.random()*Math.PI*2;
+        const rad = 15 + Math.random()*25;
+        creatureState.targetPos.set(Math.cos(ang)*rad, 0, Math.sin(ang)*rad);
+        placeOnGround({position:creatureState.targetPos}, 0);
+        data.idleTimer = 0;
+      }
+    }
+  }
+
+  const dir = tmpV.subVectors(creatureState.targetPos, creature.position);
+  const dist = dir.length();
+  if(dist>1e-3) dir.normalize();
+  const baseSpeed = (creatureState.personality === 'lazy') ? 2.1 : (creatureState.personality === 'benevolent') ? 3.2 : 4.6;
+  const speed = baseSpeed * (creatureState.leashed ? 2.0 : 1.0);
+  if(dist > 1.2){
+    data.velocity.copy(dir).multiplyScalar(speed);
+    creature.position.addScaledVector(data.velocity, delta);
+    creature.lookAt(creature.position.x + dir.x, creature.position.y, creature.position.z + dir.z);
+  } else data.velocity.set(0,0,0);
+
+  placeOnGround(creature, 0.6 * size);
+
+  const v = data.velocity.length();
+  let anim = 'idle';
+  if(creatureState.hunger > 82 && Math.random() > 0.995) anim = 'sleep';
+  else if(v > 4) anim = 'run';
+  else if(v > 0.2) anim = 'walk';
+
+  const cfg = ANIMS[anim] || ANIMS.idle;
+  const t = state.time;
+
+  creature.position.y += Math.sin(t * 8) * cfg.bodyY * 0.06 * size;
+  const sY = 1 + Math.sin(t * 4) * cfg.bodyScaleY;
+  creature.scale.set(size, size * sY, size);
+
+  data.tail.rotation.y = Math.sin(t * cfg.tailSpeed) * cfg.tailAmp;
+  data.head.position.y = 0.4 + Math.sin(t * 6) * cfg.headBob;
+
+  const earAngle = THREE.MathUtils.lerp(0.5, -0.5, 1 - bene);
+  data.leftEar.rotation.x = earAngle * 0.55;
+  data.rightEar.rotation.x = earAngle * 0.55;
+
+  creatureState.hunger = clamp(creatureState.hunger + delta*0.55, 0, 100);
+  creatureState.mood = clamp(creatureState.mood - delta*0.25 + (creatureState.leashed?delta*0.15:0), 0, 100);
+}
+
+/* Input */
+function getTerrainPointFromPointer(){
+  raycaster.setFromCamera(mouseNDC, camera);
+  const hits = raycaster.intersectObject(terrain);
+  return hits.length ? hits[0].point.clone() : null;
+}
+function onMouseMove(e){
+  mouseNDC.x = (e.clientX / window.innerWidth) * 2 - 1;
+  mouseNDC.y = -(e.clientY / window.innerHeight) * 2 + 1;
+  updateTooltip(e.clientX, e.clientY);
+}
+function onMouseDown(e){
+  if(e.button === 2){ rightDown = true; return; }
+  pointerDown = true;
+  pointerDownAt = performance.now()/1000;
+}
+function onMouseUp(e){
+  if(e.button === 2){ rightDown = false; return; }
+  const held = (performance.now()/1000) - pointerDownAt;
+  pointerDown = false;
+  if(held < 0.35){
+    const p = getTerrainPointFromPointer();
+    if(p) castAtPoint(p);
+  }
+}
+function onTouchStart(e){ e.preventDefault(); pointerDown = true; pointerDownAt = performance.now()/1000; onTouchMove(e); }
+function onTouchMove(e){
+  e.preventDefault();
+  const t = e.touches[0];
+  mouseNDC.x = (t.clientX / window.innerWidth) * 2 - 1;
+  mouseNDC.y = -(t.clientY / window.innerHeight) * 2 + 1;
+}
+function onTouchEnd(e){
+  e.preventDefault();
+  const held = (performance.now()/1000) - pointerDownAt;
+  pointerDown = false;
+  if(held < 0.45){
+    const p = getTerrainPointFromPointer();
+    if(p) castAtPoint(p);
+  }
+}
+function onKeyDown(e){
+  if(e.key >= '1' && e.key <= '9') selectMiracle(parseInt(e.key)-1);
+  if(e.key === '0') selectMiracle(9);
+  if(e.key.toLowerCase() === 'e') eHeld = true;
+}
+function onKeyUp(e){ if(e.key.toLowerCase() === 'e') eHeld = false; }
+
+/* Main loop */
+function animate(){
+  if(state.gameOver) return;
+  requestAnimationFrame(animate);
+  const delta = clock.getDelta();
+  state.time += delta;
+
+  const sunAngle = state.time * 0.10;
+  sun.position.set(Math.cos(sunAngle)*100, 120, Math.sin(sunAngle)*100);
+
+  for(let i=0;i<miracleCooldowns.length;i++) miracleCooldowns[i] = Math.max(0, miracleCooldowns[i]-delta);
+
+  raycaster.setFromCamera(mouseNDC, camera);
+  const hits = raycaster.intersectObject(terrain);
+  if(hits.length){
+    const p = hits[0].point;
+    handCursor.position.lerp(new THREE.Vector3(p.x, p.y + 0.55, p.z), 0.24);
+  }
+
+  updateLeash(delta);
+  updateCreature(delta);
+  updateVillagers(delta);
+
+  state.mana = clamp(state.mana + delta*2.0, 0, state.maxMana);
+  state.overheat = clamp(state.overheat - delta*2.2, 0, 100);
+
+  updateParticles(delta);
+
+  if(state.cameraShake > 0){
+    camera.position.x += (Math.random()-0.5)*state.cameraShake*0.08;
+    camera.position.z += (Math.random()-0.5)*state.cameraShake*0.08;
+    state.cameraShake = Math.max(0, state.cameraShake - delta*0.8);
+  }
+
+  if(state.templeHP <= 0){
+    state.gameOver = true;
+    toast("TEMPLE FALLEN");
+  }
+
+  if(Math.floor(state.time) % 8 === 0 && !animate._savedThisSecond){
+    try{
+      localStorage.setItem('meowCreatureNGP', JSON.stringify({ learn: creatureState.learn, personality: creatureState.personality, xp: creatureState.xp }));
+    }catch(e){}
+    animate._savedThisSecond = true;
+  }
+  if(Math.floor(state.time) % 8 !== 0) animate._savedThisSecond = false;
+
+  controls.update();
+  updateCooldownUI();
+  updateUI();
+  renderer.render(scene, camera);
+}
+
+init();
+</script>
+</body>
+</html>

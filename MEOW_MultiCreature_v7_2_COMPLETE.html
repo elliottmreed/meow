@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Multi-Creature God Game</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <h1>Welcome to the Enhanced Multi-Creature God Game</h1>
+    <div id="creatureSelection">
+        <h2>Select Your Creatures</h2>
+        <button id="creature1">Creature 1</button>
+        <button id="creature2">Creature 2</button>
+    </div>
+    <div id="sceneContainer"></div>
+    <script>
+        // Create the scene
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('sceneContainer').appendChild(renderer.domElement);
+
+        // Add water and land mechanics here
+        // Full Three.js implementation
+
+        function animate() {
+            requestAnimationFrame(animate);
+            renderer.render(scene, camera);
+        }
+        animate();
+    </script>
+</body>
+</html>
